@@ -149,7 +149,7 @@ contract Claimable is Context {
     /// @notice special cases: cliff = period: all claimable after the cliff
     function create(address _token, address payable _beneficiary, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256 ticketId) {
       /// @dev sender needs to approve this contract to fund the claim
-      require(_recipient != address(0), "Beneficiary is required");
+      require(_beneficiary != address(0), "Beneficiary is required");
       require(_amount > 0, "Amount is required");
       require(_vesting >= _cliff, "Vesting period should be equal or longer to the cliff");
       ERC20 token = ERC20(_token);
@@ -171,7 +171,7 @@ contract Claimable is Context {
     }
 
     /// @notice check available claims, only grantor or beneficiary can call
-    function check(uint256 _id) public returns (uint256 amount) {
+    function check(uint256 _id) public view returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
         require(ticket.grantor == _msgSender() || ticket.beneficiary == _msgSender(), "Only grantor or beneficiary can check available claim.");
         require(ticket.isRevoked == false, "Ticket is already revoked");
@@ -180,7 +180,7 @@ contract Claimable is Context {
     }
 
     /// @notice claim available balance, only beneficiary can call
-    function claim(uint256 _id) public returns (uint256 success) {
+    function claim(uint256 _id) public returns (bool success) {
       Ticket storage ticket = tickets[_id];
       require(ticket.beneficiary == _msgSender(), "Only beneficiary can claim.");
       require(ticket.isRevoked == false, "Ticket is already revoked");
@@ -208,18 +208,19 @@ contract Claimable is Context {
       ticket.isRevoked = true;
       ticket.balance = 0;
       emit Revoked(_id, ticket.balance);
+      success = true;
     }
 
     /// @dev checks the ticket has cliffed or not
-    function _hasCliffed(uint256 _id) internal returns (bool) {
+    function _hasCliffed(uint256 _id) internal view returns (bool) {
         Ticket memory ticket = tickets[_id];
         return block.timestamp > SafeMath.add(ticket.createdAt, ticket.cliff * 1 days);
     }
 
     /// @dev calculates the available balances excluding cliff and claims
-    function _unlocked(uint256 _id) internal returns (uint256 amount) {
+    function _unlocked(uint256 _id) internal view returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
-        uint256 timeLapsed = SafeMath.sub(block.timestamp - ticket.createdAt); // in seconds
+        uint256 timeLapsed = SafeMath.sub(block.timestamp, ticket.createdAt); // in seconds
         uint256 daysLapsed = SafeMath.div(timeLapsed, 86400); // demonimator: 60 x 60 x 24
         amount = SafeMath.mul(
             SafeMath.div(daysLapsed, ticket.vesting),
@@ -228,7 +229,7 @@ contract Claimable is Context {
     }
 
     /// @dev calculates available for claim
-    function _available(uint256 _id) internal returns (uint256 amount) {
+    function _available(uint256 _id) internal view returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
         if (_hasCliffed(_id)) {
             amount = SafeMath.sub(_unlocked(_id), ticket.claimed);

@@ -130,6 +130,11 @@ contract Claimable is Context {
         => mapping (uint256 => uint256)) claims; // claimId => lastClaimAt => amount
     }
 
+    /// @notice address => id[]
+    /// @dev this is expensive but make it easy to create management UI
+    mapping (address => uint256[]) public grantorTickets;
+    mapping (address => uint256[]) public beneficiaryTickets;
+
     /**
      * Claim tickets
      */
@@ -183,7 +188,6 @@ contract Claimable is Context {
       require(token.transferFrom(address(this), _msgSender(), ticket.balance), "Return balance failed");
       ticket.isRevoked = true;
       ticket.balance = true;
-
     }
 
 

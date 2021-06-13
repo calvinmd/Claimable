@@ -116,9 +116,10 @@ contract Claimable is Context {
       address token; // ERC20 token address
       address payable grantor; // grantor address
       address payable beneficiary;
-      uint256 cliff; // cliff time from creation
-      uint256 vesting; // vesting period
+      uint256 cliff; // cliff time from creation in days
+      uint256 vesting; // vesting period in days
       uint256 amount; // initial funding amount
+      uint256 claimed; // amount already claimed
       uint256 balance; // current balance
       uint256 createdAt; // begin time
       uint256 lastClaimedAt;
@@ -126,8 +127,8 @@ contract Claimable is Context {
       bool irrevocable; // cannot be revoked
       bool isRevoked; // return balance to grantor
       uint256 revokedAt; // revoke timestamp
-      mapping (uint256
-        => mapping (uint256 => uint256)) claims; // claimId => lastClaimAt => amount
+    //   mapping (uint256
+    //     => mapping (uint256 => uint256)) claims; // claimId => lastClaimAt => amount
     }
 
     /// @notice address => id[]
@@ -170,13 +171,29 @@ contract Claimable is Context {
     }
 
     /// @notice check available claims, only grantor or beneficiary can call
-    function check(uint256 _id) public returns (uint256 balance) {
-
+    function check(uint256 _id) public returns (uint256 amount) {
+        Ticket memory ticket = tickets[_id];
+        require(ticket.grantor == _msgSender() || ticket.beneficiary == _msgSender(), "Only grantor or beneficiary can check available claim.");
+        require(ticket.isRevoked == false, "Ticket is already revoked");
+        require(ticket.balance > 0, "Ticket has no balance.");
+        amount = _available(_id);
     }
 
     /// @notice claim available balance, only beneficiary can call
-    function claim(uint256 _id) public returns (uint256 amount) {
-
+    function claim(uint256 _id) public returns (uint256 success) {
+      Ticket storage ticket = tickets[_id];
+      require(ticket.beneficiary == _msgSender(), "Only beneficiary can claim.");
+      require(ticket.isRevoked == false, "Ticket is already revoked");
+      require(ticket.balance > 0, "Ticket has no balance.");
+      ERC20 token = ERC20(ticket.token);
+      uint256 amount = _available(_id);
+      require(token.transferFrom(address(this), _msgSender(), amount), "Claim failed");
+      ticket.claimed = SafeMath.add(ticket.claimed, amount);
+      ticket.balance = SafeMath.sub(ticket.balance, amount);
+      ticket.lastClaimedAt = block.timestamp;
+      ticket.numClaims = SafeMath.add(ticket.numClaims, 1);
+      emit Claimed(_id, ticket.token, amount);
+      success = true;
     }
 
     /// @notice revoke ticket, balance returns to grantor, only grantor can call
@@ -189,15 +206,35 @@ contract Claimable is Context {
       ERC20 token = ERC20(ticket.token);
       require(token.transferFrom(address(this), _msgSender(), ticket.balance), "Return balance failed");
       ticket.isRevoked = true;
-      ticket.balance = true;
+      ticket.balance = 0;
+      emit Revoked(_id, ticket.balance);
     }
 
     /// @dev checks the ticket has cliffed or not
-    function _hasCliffed(uint256 _id) internal returns (bool hasCliffed) {
+    function _hasCliffed(uint256 _id) internal returns (bool) {
+        Ticket memory ticket = tickets[_id];
+        return block.timestamp > SafeMath.add(ticket.createdAt, ticket.cliff * 1 days);
     }
 
-    /// @dev calculates the available balances (before the claimed amount)
+    /// @dev calculates the available balances excluding cliff and claims
+    function _unlocked(uint256 _id) internal returns (uint256 amount) {
+        Ticket memory ticket = tickets[_id];
+        uint256 timeLapsed = SafeMath.sub(block.timestamp - ticket.createdAt); // in seconds
+        uint256 daysLapsed = SafeMath.div(timeLapsed, 86400); // demonimator: 60 x 60 x 24
+        amount = SafeMath.mul(
+            SafeMath.div(daysLapsed, ticket.vesting),
+            ticket.amount
+        );
+    }
+
+    /// @dev calculates available for claim
     function _available(uint256 _id) internal returns (uint256 amount) {
+        Ticket memory ticket = tickets[_id];
+        if (_hasCliffed(_id)) {
+            amount = SafeMath.sub(_unlocked(_id), ticket.claimed);
+        } else {
+            amount = 0;
+        }
     }
 
     /**
@@ -246,106 +283,106 @@ contract Claimable is Context {
     // /// @dev DEBUG
     // event DEBUG(string message, uint256 amount);
 
-    modifier isAdmin() {
-        require(
-            _msgSender() == admin,
-            "Sender not authorized."
-        );
-        _;
-    }
+    // modifier isAdmin() {
+    //     require(
+    //         _msgSender() == admin,
+    //         "Sender not authorized."
+    //     );
+    //     _;
+    // }
 
-    constructor() {
-        /// @dev set creator as admin
-        admin = _msgSender();
-        /// @dev auto initiate first pool
-        live[currentPoolId] = true;
-        emit PoolCreated(currentPoolId);
-    }
+    // constructor() {
+    //     /// @dev set creator as admin
+    //     admin = _msgSender();
+    //     /// @dev auto initiate first pool
+    //     // live[currentPoolId] = true;
+    //     // emit PoolCreated(currentPoolId);
+    // }
 
-    fallback() external payable {}
+    // fallback() external payable {}
 
-    function createPool() isAdmin public {
-        currentPoolId = SafeMath.add(currentPoolId, 1);
-        live[currentPoolId] = true;
-        emit PoolCreated(currentPoolId);
-    }
+    // function createPool() isAdmin public {
+    //     currentPoolId = SafeMath.add(currentPoolId, 1);
+    //     live[currentPoolId] = true;
+    //     emit PoolCreated(currentPoolId);
+    // }
 
-    function lockPool(uint256 _poolId) isAdmin public {
-        live[_poolId] = false;
-        emit PoolLocked(_poolId);
-    }
+    // function lockPool(uint256 _poolId) isAdmin public {
+    //     live[_poolId] = false;
+    //     emit PoolLocked(_poolId);
+    // }
 
-    function setFeePercent(uint256 _feePercent) isAdmin public {
-        feePercent = _feePercent;
-        emit FeePercentUpdated(_feePercent);
-    }
+    // function setFeePercent(uint256 _feePercent) isAdmin public {
+    //     feePercent = _feePercent;
+    //     emit FeePercentUpdated(_feePercent);
+    // }
 
-    /// @dev setting metadata.
-    function setMetadata1(uint256 _poolId, string calldata _metadata) isAdmin public {
-        metadata1[_poolId] = _metadata;
-        emit MetadataSet("metadata1", _metadata);
-    }
-    function setMetadata2(uint256 _poolId, string calldata _metadata) isAdmin public {
-        metadata2[_poolId] = _metadata;
-        emit MetadataSet("metadata2", _metadata);
-    }
-    function setMetadata3(uint256 _poolId, string calldata _metadata) isAdmin public {
-        metadata3[_poolId] = _metadata;
-        emit MetadataSet("metadata3", _metadata);
-    }
-    function setMetadata4(uint256 _poolId, string calldata _metadata) isAdmin public {
-        metadata4[_poolId] = _metadata;
-        emit MetadataSet("metadata4", _metadata);
-    }
+    // /// @dev setting metadata.
+    // function setMetadata1(uint256 _poolId, string calldata _metadata) isAdmin public {
+    //     metadata1[_poolId] = _metadata;
+    //     emit MetadataSet("metadata1", _metadata);
+    // }
+    // function setMetadata2(uint256 _poolId, string calldata _metadata) isAdmin public {
+    //     metadata2[_poolId] = _metadata;
+    //     emit MetadataSet("metadata2", _metadata);
+    // }
+    // function setMetadata3(uint256 _poolId, string calldata _metadata) isAdmin public {
+    //     metadata3[_poolId] = _metadata;
+    //     emit MetadataSet("metadata3", _metadata);
+    // }
+    // function setMetadata4(uint256 _poolId, string calldata _metadata) isAdmin public {
+    //     metadata4[_poolId] = _metadata;
+    //     emit MetadataSet("metadata4", _metadata);
+    // }
 
-    function settlePool(uint256 _poolId, uint256 _winningBucketId) isAdmin public {
-        require(_winningBucketId < maxBuckets && _winningBucketId >= 0, "Invalid bucketId");
-        /// @dev Pool winner distribution
-        for (uint256 i=0; i < bucketAddresses[_poolId][_winningBucketId].length; i++) {
-            token.transfer(
-                bucketAddresses[_poolId][_winningBucketId][i],
-                SafeMath.div(
-                    SafeMath.mul(
-                        bucketSizePerAddress[_poolId][_winningBucketId][bucketAddresses[_poolId][_winningBucketId][i]],
-                        SafeMath.mul(
-                            poolSize[_poolId],
-                            SafeMath.sub(100, feePercent)
-                        )
-                    ),
-                    SafeMath.mul(
-                        bucketSize[_poolId][_winningBucketId],
-                        100
-                    )
-                )
-            );
-        }
-        /// @dev Lock pool
-        lockPool(_poolId);
-        /// @dev Delete all bucket addresses
-        for (uint256 j=0; j < maxBuckets; j++) {
-            delete bucketAddresses[_poolId][j];
-        }
-        emit Settled(_poolId, _winningBucketId, poolSize[_poolId]);
-    }
+    // function settlePool(uint256 _poolId, uint256 _winningBucketId) isAdmin public {
+    //     require(_winningBucketId < maxBuckets && _winningBucketId >= 0, "Invalid bucketId");
+    //     /// @dev Pool winner distribution
+    //     for (uint256 i=0; i < bucketAddresses[_poolId][_winningBucketId].length; i++) {
+    //         token.transfer(
+    //             bucketAddresses[_poolId][_winningBucketId][i],
+    //             SafeMath.div(
+    //                 SafeMath.mul(
+    //                     bucketSizePerAddress[_poolId][_winningBucketId][bucketAddresses[_poolId][_winningBucketId][i]],
+    //                     SafeMath.mul(
+    //                         poolSize[_poolId],
+    //                         SafeMath.sub(100, feePercent)
+    //                     )
+    //                 ),
+    //                 SafeMath.mul(
+    //                     bucketSize[_poolId][_winningBucketId],
+    //                     100
+    //                 )
+    //             )
+    //         );
+    //     }
+    //     /// @dev Lock pool
+    //     lockPool(_poolId);
+    //     /// @dev Delete all bucket addresses
+    //     for (uint256 j=0; j < maxBuckets; j++) {
+    //         delete bucketAddresses[_poolId][j];
+    //     }
+    //     emit Settled(_poolId, _winningBucketId, poolSize[_poolId]);
+    // }
 
-    function enter(uint256 _poolId, uint256 _bucketId, uint256 _amount) public {
-        require(live[_poolId] == true && settled[_poolId] == false, "Invalid pool id");
-        require(_bucketId < maxBuckets && _bucketId >= 0, "Invalid bucketId");
-        require(token.balanceOf(_msgSender()) >= _amount, "Insufficient balance");
-        /// @dev user needs to approve the contract address explicitly
-        require(token.transferFrom(_msgSender(), address(this), _amount), "Payment transfer failed");
-        /// @dev add address for new users
-        if (entry[_poolId][_msgSender()][_bucketId] == 0 && _amount > 0) {
-            bucketAddresses[_poolId][_bucketId].push(_msgSender());
-        }
-        /// @dev log entry
-        entry[_poolId][_msgSender()][_bucketId] = SafeMath.add(entry[_poolId][_msgSender()][_bucketId], _amount);
-        /// @dev log bucketSize
-        bucketSize[_poolId][_bucketId] = SafeMath.add(bucketSize[_poolId][_bucketId], _amount);
-        /// @dev log bucketSize per address
-        bucketSizePerAddress[_poolId][_bucketId][_msgSender()] = SafeMath.add(bucketSizePerAddress[_poolId][_bucketId][_msgSender()], _amount);
-        /// @dev log poolSize
-        poolSize[_poolId] = SafeMath.add(poolSize[_poolId], _amount);
-        emit EntryCreated(_poolId, _msgSender(), _bucketId, _amount);
-    }
+    // function enter(uint256 _poolId, uint256 _bucketId, uint256 _amount) public {
+    //     require(live[_poolId] == true && settled[_poolId] == false, "Invalid pool id");
+    //     require(_bucketId < maxBuckets && _bucketId >= 0, "Invalid bucketId");
+    //     require(token.balanceOf(_msgSender()) >= _amount, "Insufficient balance");
+    //     /// @dev user needs to approve the contract address explicitly
+    //     require(token.transferFrom(_msgSender(), address(this), _amount), "Payment transfer failed");
+    //     /// @dev add address for new users
+    //     if (entry[_poolId][_msgSender()][_bucketId] == 0 && _amount > 0) {
+    //         bucketAddresses[_poolId][_bucketId].push(_msgSender());
+    //     }
+    //     /// @dev log entry
+    //     entry[_poolId][_msgSender()][_bucketId] = SafeMath.add(entry[_poolId][_msgSender()][_bucketId], _amount);
+    //     /// @dev log bucketSize
+    //     bucketSize[_poolId][_bucketId] = SafeMath.add(bucketSize[_poolId][_bucketId], _amount);
+    //     /// @dev log bucketSize per address
+    //     bucketSizePerAddress[_poolId][_bucketId][_msgSender()] = SafeMath.add(bucketSizePerAddress[_poolId][_bucketId][_msgSender()], _amount);
+    //     /// @dev log poolSize
+    //     poolSize[_poolId] = SafeMath.add(poolSize[_poolId], _amount);
+    //     emit EntryCreated(_poolId, _msgSender(), _bucketId, _amount);
+    // }
 }

@@ -153,7 +153,7 @@ contract Claimable is Context {
       require(_amount > 0, "Amount is required");
       require(_vesting >= _cliff, "Vesting period should be equal or longer to the cliff");
       ERC20 token = ERC20(_token);
-      require(token.transfer(address(this), _amount), "Funding failed.");
+      require(token.transferFrom(_msgSender(), address(this), _amount), "Funding failed.");
       ticketId = currentId++;
       Ticket storage ticket = tickets[ticketId];
       ticket.token = _token;

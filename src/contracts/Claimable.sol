@@ -164,6 +164,8 @@ contract Claimable is Context {
       ticket.balance = _amount;
       ticket.createdAt = block.timestamp;
       ticket.irrevocable = _irrevocable;
+      grantorTickets[_msgSender()].push(ticketId);
+      beneficiaryTickets[_msgSender()].push(ticketId);
       emit TicketCreated(ticketId, _token, _amount, _irrevocable);
     }
 
@@ -190,6 +192,13 @@ contract Claimable is Context {
       ticket.balance = true;
     }
 
+    /// @dev checks the ticket has cliffed or not
+    function _hasCliffed(uint256 _id) internal returns (bool hasCliffed) {
+    }
+
+    /// @dev calculates the available balances (before the claimed amount)
+    function _available(uint256 _id) internal returns (uint256 amount) {
+    }
 
     /**
      * Entries

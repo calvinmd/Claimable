@@ -1,6 +1,6 @@
 # Claimable
 ## What is Claimable?
-Claimable is a smart contract that allows you to schedule your token release or transfer. It works similar to a stock option grant, where you specify a cliff and a vesting period. This could be used for common use cases such as investor token release and incentive token grants.
+Claimable is a smart contract that allows you to schedule your token release or transfer. It works similar to a stock option grant, where you specify a cliff and a vesting period. This could be used for common use cases such as investor token release and incentive token grants. It works on all EVM-compatible blockchains, such as Ethereum and its testnets, Binance Smart Chain, and Avalanche, etc.
 
 Watch video demo here: https://youtu.be/C99OsGbJNtM
 

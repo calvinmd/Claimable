@@ -233,7 +233,7 @@ contract Claimable is Context {
         if (ticket.cliff == 0) {
             return true;
         }
-        return block.timestamp > SafeMath.add(ticket.createdAt, ticket.cliff * 1 days);
+        return block.timestamp > SafeMath.add(ticket.createdAt, SafeMath.mul(ticket.cliff, 86400)); // in seconds 24 x 60 x 60
     }
 
     /// @dev calculates the available balances excluding cliff and claims

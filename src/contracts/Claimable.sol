@@ -103,6 +103,8 @@ library SafeMath {
  *        (t - t0) / vesting * amount
  *      - multiple claims, last claim at t1, claim at t:
  *        (t - t1) / vesting * amount
+ *        or
+ *        (t - t0) / vesting * amount - claimed
  */
 contract Claimable is Context {
     using SafeMath for uint256;
@@ -165,6 +167,7 @@ contract Claimable is Context {
       require(_amount > 0, "Amount is required");
       require(_vesting >= _cliff, "Vesting period should be equal or longer to the cliff");
       ERC20 token = ERC20(_token);
+      require(token.balanceOf(_msgSender()) >= _amount, "Insufficient balance");
       require(token.transferFrom(_msgSender(), address(this), _amount), "Funding failed.");
       ticketId = ++currentId;
       Ticket storage ticket = tickets[ticketId];
@@ -259,153 +262,4 @@ contract Claimable is Context {
             amount = 0;
         }
     }
-
-    /**
-     * Entries
-     */
-    // /// @notice Entries: poolId => sender => bucketId => amount
-    // mapping (uint256 => mapping (address => mapping (uint256 => uint256))) public entry;
-    // /// @notice Bucket size: poolId => bucketId => amount (total)
-    // mapping (uint256 => mapping (uint256 => uint256)) public bucketSize;
-    // /// @notice Bucket size: poolId => bucketId => address => amount (total)
-    // mapping (uint256 => mapping (uint256 => mapping (address => uint256))) public bucketSizePerAddress;
-    // /// @notice Pool size: poolId => amount (total)
-    // mapping (uint256 => uint256) public poolSize;
-    // /// @notice address in each bucket: poolId => bucketId => dynamic address array
-    // /// @dev this is expensive but needed to settle on-chain
-    // mapping (uint256 => mapping (uint256 => address[])) public bucketAddresses;
-
-    // /**
-    //  * Pools
-    //  */
-    // /// @notice Is pool live? poolId => boolean
-    // mapping (uint256 => bool) public live;
-    // /// @notice Is pool settled? poolId => boolean
-    // mapping (uint256 => bool) public settled;
-    // /// @notice Pool metadata 1
-    // mapping (uint256 => string) public metadata1;
-    // /// @notice Pool metadata 2
-    // mapping (uint256 => string) public metadata2;
-    // /// @notice Pool metadata 3
-    // mapping (uint256 => string) public metadata3;
-    // /// @notice Pool metadata 4
-    // mapping (uint256 => string) public metadata4;
-
-    /// @notice event for entry logged
-    // event EntryCreated(uint256 poolId, address sender, uint256 bucketId, uint256 amount);
-    // /// @notice poolId with winning bucketId with the total poolSize
-    // event Settled(uint256 poolId, uint256 bucketId, uint256 poolSize);
-    // /// @dev Metadata set
-    // event MetadataSet(string handle, string data);
-    // /// @dev Fee updated
-    // event FeePercentUpdated(uint256 feePercent);
-    // /// @dev Pool lolockPool
-    // event PoolLocked(uint256 poolId);
-    // /// @dev Pool created
-    // event PoolCreated(uint256 poolId);
-    // /// @dev DEBUG
-    // event DEBUG(string message, uint256 amount);
-
-    // modifier isAdmin() {
-    //     require(
-    //         _msgSender() == admin,
-    //         "Sender not authorized."
-    //     );
-    //     _;
-    // }
-
-    // constructor() {
-    //     /// @dev set creator as admin
-    //     admin = _msgSender();
-    //     /// @dev auto initiate first pool
-    //     // live[currentPoolId] = true;
-    //     // emit PoolCreated(currentPoolId);
-    // }
-
-    // fallback() external payable {}
-
-    // function createPool() isAdmin public {
-    //     currentPoolId = SafeMath.add(currentPoolId, 1);
-    //     live[currentPoolId] = true;
-    //     emit PoolCreated(currentPoolId);
-    // }
-
-    // function lockPool(uint256 _poolId) isAdmin public {
-    //     live[_poolId] = false;
-    //     emit PoolLocked(_poolId);
-    // }
-
-    // function setFeePercent(uint256 _feePercent) isAdmin public {
-    //     feePercent = _feePercent;
-    //     emit FeePercentUpdated(_feePercent);
-    // }
-
-    // /// @dev setting metadata.
-    // function setMetadata1(uint256 _poolId, string calldata _metadata) isAdmin public {
-    //     metadata1[_poolId] = _metadata;
-    //     emit MetadataSet("metadata1", _metadata);
-    // }
-    // function setMetadata2(uint256 _poolId, string calldata _metadata) isAdmin public {
-    //     metadata2[_poolId] = _metadata;
-    //     emit MetadataSet("metadata2", _metadata);
-    // }
-    // function setMetadata3(uint256 _poolId, string calldata _metadata) isAdmin public {
-    //     metadata3[_poolId] = _metadata;
-    //     emit MetadataSet("metadata3", _metadata);
-    // }
-    // function setMetadata4(uint256 _poolId, string calldata _metadata) isAdmin public {
-    //     metadata4[_poolId] = _metadata;
-    //     emit MetadataSet("metadata4", _metadata);
-    // }
-
-    // function settlePool(uint256 _poolId, uint256 _winningBucketId) isAdmin public {
-    //     require(_winningBucketId < maxBuckets && _winningBucketId >= 0, "Invalid bucketId");
-    //     /// @dev Pool winner distribution
-    //     for (uint256 i=0; i < bucketAddresses[_poolId][_winningBucketId].length; i++) {
-    //         token.transfer(
-    //             bucketAddresses[_poolId][_winningBucketId][i],
-    //             SafeMath.div(
-    //                 SafeMath.mul(
-    //                     bucketSizePerAddress[_poolId][_winningBucketId][bucketAddresses[_poolId][_winningBucketId][i]],
-    //                     SafeMath.mul(
-    //                         poolSize[_poolId],
-    //                         SafeMath.sub(100, feePercent)
-    //                     )
-    //                 ),
-    //                 SafeMath.mul(
-    //                     bucketSize[_poolId][_winningBucketId],
-    //                     100
-    //                 )
-    //             )
-    //         );
-    //     }
-    //     /// @dev Lock pool
-    //     lockPool(_poolId);
-    //     /// @dev Delete all bucket addresses
-    //     for (uint256 j=0; j < maxBuckets; j++) {
-    //         delete bucketAddresses[_poolId][j];
-    //     }
-    //     emit Settled(_poolId, _winningBucketId, poolSize[_poolId]);
-    // }
-
-    // function enter(uint256 _poolId, uint256 _bucketId, uint256 _amount) public {
-    //     require(live[_poolId] == true && settled[_poolId] == false, "Invalid pool id");
-    //     require(_bucketId < maxBuckets && _bucketId >= 0, "Invalid bucketId");
-    //     require(token.balanceOf(_msgSender()) >= _amount, "Insufficient balance");
-    //     /// @dev user needs to approve the contract address explicitly
-    //     require(token.transferFrom(_msgSender(), address(this), _amount), "Payment transfer failed");
-    //     /// @dev add address for new users
-    //     if (entry[_poolId][_msgSender()][_bucketId] == 0 && _amount > 0) {
-    //         bucketAddresses[_poolId][_bucketId].push(_msgSender());
-    //     }
-    //     /// @dev log entry
-    //     entry[_poolId][_msgSender()][_bucketId] = SafeMath.add(entry[_poolId][_msgSender()][_bucketId], _amount);
-    //     /// @dev log bucketSize
-    //     bucketSize[_poolId][_bucketId] = SafeMath.add(bucketSize[_poolId][_bucketId], _amount);
-    //     /// @dev log bucketSize per address
-    //     bucketSizePerAddress[_poolId][_bucketId][_msgSender()] = SafeMath.add(bucketSizePerAddress[_poolId][_bucketId][_msgSender()], _amount);
-    //     /// @dev log poolSize
-    //     poolSize[_poolId] = SafeMath.add(poolSize[_poolId], _amount);
-    //     emit EntryCreated(_poolId, _msgSender(), _bucketId, _amount);
-    // }
 }

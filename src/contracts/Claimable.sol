@@ -160,6 +160,16 @@ contract Claimable is Context {
         _;
     }
 
+    /// @dev show all my grantor tickets
+    function myGrantorTickets() public view returns (uint256[] memory myTickets) {
+        myTickets = grantorTickets[_msgSender()];
+    }
+
+    /// @dev show all my beneficiary tickets
+    function myBeneficiaryTickets() public view returns (uint256[] memory myTickets) {
+        myTickets = beneficiaryTickets[_msgSender()];
+    }
+
     /// @notice special cases: cliff = period: all claimable after the cliff
     function create(address _token, address payable _beneficiary, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256 ticketId) {
       /// @dev sender needs to approve this contract to fund the claim
@@ -185,23 +195,6 @@ contract Claimable is Context {
       emit TicketCreated(ticketId, _token, _amount, _irrevocable);
     }
 
-    /// @dev show all my grantor tickets
-    function myGrantorTickets() public view returns (uint256[] memory myTickets) {
-        myTickets = grantorTickets[_msgSender()];
-    }
-
-    /// @dev show all my beneficiary tickets
-    function myBeneficiaryTickets() public view returns (uint256[] memory myTickets) {
-        myTickets = beneficiaryTickets[_msgSender()];
-    }
-
-    /// @notice check available claims, only grantor or beneficiary can call
-    function check(uint256 _id) canView(_id) notRevoked(_id) public view returns (uint256 amount) {
-        Ticket memory ticket = tickets[_id];
-        require(ticket.balance > 0, "Ticket has no balance.");
-        amount = available(_id);
-    }
-
     /// @notice claim available balance, only beneficiary can call
     function claim(uint256 _id) notRevoked(_id) public returns (bool success) {
       Ticket storage ticket = tickets[_id];
@@ -210,7 +203,7 @@ contract Claimable is Context {
       ERC20 token = ERC20(ticket.token);
       uint256 amount = available(_id);
       require(amount > 0, "Nothing to claim.");
-      require(token.transferFrom(address(this), _msgSender(), amount), "Claim failed");
+      require(token.transfer(_msgSender(), amount), "Claim failed");
       ticket.claimed = SafeMath.add(ticket.claimed, amount);
       ticket.balance = SafeMath.sub(ticket.balance, amount);
       ticket.lastClaimedAt = block.timestamp;
@@ -236,9 +229,6 @@ contract Claimable is Context {
 
     /// @dev checks the ticket has cliffed or not
     function hasCliffed(uint256 _id) canView(_id) public view returns (bool) {
-        if (_id > currentId) {
-            return false;
-        }
         Ticket memory ticket = tickets[_id];
         if (ticket.cliff == 0) {
             return true;
@@ -250,16 +240,17 @@ contract Claimable is Context {
     function unlocked(uint256 _id) canView(_id) public view returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
         uint256 timeLapsed = SafeMath.sub(block.timestamp, ticket.createdAt); // in seconds
-        uint256 daysLapsed = SafeMath.div(timeLapsed, 1 days); // demonimator: 60 x 60 x 24
-        amount = SafeMath.mul(
-            SafeMath.div(daysLapsed, ticket.vesting * 1 days),
-            ticket.amount
+        uint256 vestingInSeconds = SafeMath.mul(ticket.vesting, 86400); // in seconds: 24 x 60 x 60
+        amount = SafeMath.div(
+            SafeMath.mul(timeLapsed, ticket.amount),
+            vestingInSeconds
         );
     }
 
-    /// @dev calculates available for claim
-    function available(uint256 _id) canView(_id) public view returns (uint256 amount) {
+    /// @notice check available claims, only grantor or beneficiary can call
+    function available(uint256 _id) canView(_id) notRevoked(_id) public view returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
+        require(ticket.balance > 0, "Ticket has no balance.");
         if (hasCliffed(_id)) {
             amount = SafeMath.sub(unlocked(_id), ticket.claimed);
         } else {

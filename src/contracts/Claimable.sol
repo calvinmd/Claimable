@@ -235,6 +235,9 @@ contract Claimable is Context {
 
     /// @dev checks the ticket has cliffed or not
     function hasCliffed(uint256 _id) canView(_id) public view returns (bool) {
+        if (_id > currentId) {
+            return false;
+        }
         Ticket memory ticket = tickets[_id];
         if (ticket.cliff == 0) {
             return true;

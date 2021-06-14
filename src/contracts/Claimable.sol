@@ -209,6 +209,7 @@ contract Claimable is Context {
       require(ticket.balance > 0, "Ticket has no balance.");
       ERC20 token = ERC20(ticket.token);
       uint256 amount = available(_id);
+      require(amount > 0, "Nothing to claim.");
       require(token.transferFrom(address(this), _msgSender(), amount), "Claim failed");
       ticket.claimed = SafeMath.add(ticket.claimed, amount);
       ticket.balance = SafeMath.sub(ticket.balance, amount);

@@ -129,8 +129,6 @@ contract Claimable is Context {
       bool irrevocable; // cannot be revoked
       bool isRevoked; // return balance to grantor
       uint256 revokedAt; // revoke timestamp
-    //   mapping (uint256
-    //     => mapping (uint256 => uint256)) claims; // claimId => lastClaimAt => amount
     }
 
     /// @dev address => id[]
@@ -142,7 +140,7 @@ contract Claimable is Context {
      * Claim tickets
      */
     /// @notice id => Ticket
-    mapping (uint256 => Ticket) public tickets;
+    mapping (uint256 => Ticket) private tickets;
 
     event TicketCreated(uint256 id, address token, uint256 amount, bool irrevocable);
     event Claimed(uint256 id, address token, uint256 amount);
@@ -158,6 +156,10 @@ contract Claimable is Context {
         Ticket memory ticket = tickets[_id];
         require(ticket.isRevoked == false, "Ticket is already revoked");
         _;
+    }
+
+    function viewTicket(uint256 _id) canView(_id) public view returns (Ticket memory ticket) {
+        ticket = tickets[_id];
     }
 
     /// @dev show all my grantor tickets

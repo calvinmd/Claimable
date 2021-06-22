@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity >=0.6.0 <0.8.0;
+pragma abicoder v2;
 
 /*
  * @dev Provides information about the current execution context, including the
@@ -117,7 +118,7 @@ contract Claimable is Context {
     struct Ticket {
       address token; // ERC20 token address
       address payable grantor; // grantor address
-      address payable beneficiary;
+      address beneficiary;
       uint256 cliff; // cliff time from creation in days
       uint256 vesting; // vesting period in days
       uint256 amount; // initial funding amount
@@ -139,7 +140,7 @@ contract Claimable is Context {
     /**
      * Claim tickets
      */
-    /// @notice id => Ticket
+    /// @dev id => Ticket
     mapping (uint256 => Ticket) private tickets;
 
     event TicketCreated(uint256 id, address token, uint256 amount, bool irrevocable);
@@ -173,7 +174,7 @@ contract Claimable is Context {
     }
 
     /// @notice special cases: cliff = period: all claimable after the cliff
-    function create(address _token, address payable _beneficiary, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256 ticketId) {
+    function create(address _token, address _beneficiary, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256 ticketId) {
       /// @dev sender needs to approve this contract to fund the claim
       require(_beneficiary != address(0), "Beneficiary is required");
       require(_amount > 0, "Amount is required");
@@ -195,6 +196,17 @@ contract Claimable is Context {
       grantorTickets[_msgSender()].push(ticketId);
       beneficiaryTickets[_beneficiary].push(ticketId);
       emit TicketCreated(ticketId, _token, _amount, _irrevocable);
+    }
+
+    /// @notice allow batch create tickets with the same terms
+    function batchCreate(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256[] memory ticketIds) {
+        /// @dev set maximum array length?
+        for (uint256 i=0; i < _beneficiaries.length; i++) {
+            uint256 ticketId = create(_token, _beneficiaries[i], _cliff, _vesting, _amount, _irrevocable);
+            if (ticketId > 0) {
+                ticketIds[i] = ticketId;
+            }
+        }
     }
 
     /// @notice claim available balance, only beneficiary can call

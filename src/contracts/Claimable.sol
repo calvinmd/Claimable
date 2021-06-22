@@ -200,13 +200,10 @@ contract Claimable is Context {
     }
 
     /// @notice allow batch create tickets with the same terms
-    function batchCreate(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public returns (uint256[] memory ticketIds) {
+    function batchCreate(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public {
         /// @dev set maximum array length?
         for (uint256 i=0; i < _beneficiaries.length; i++) {
-            uint256 ticketId = create(_token, _beneficiaries[i], _cliff, _vesting, _amount, _irrevocable);
-            if (ticketId > 0) {
-                ticketIds[i] = ticketId;
-            }
+            create(_token, _beneficiaries[i], _cliff, _vesting, _amount, _irrevocable);
         }
     }
 

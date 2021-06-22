@@ -13,14 +13,21 @@ As a grantor, you can create a grant `ticket` where you specify the following
 - **vesting**: the number of days for the entire amount to be vested
 - **amount**: the number of tokens you are granting
 - **irrevocable**: if set to `true`, you will not be able to revoke
-
-### batchCreate (transaction)
+### batchCreateSameAmount (transaction)
 As a grantor, you can create a batch of `tickets` where you specify the following
 - **token**: the address of the ERC20 token you are granting
 - **beneficiaries**: array of recipients
 - **cliff**: you can specify a cliff (in number of days) or set it to 0 to make it immediately available
 - **vesting**: the number of days for the entire amount to be vested
 - **amount**: the number of tokens you are granting
+- **irrevocable**: if set to `true`, you will not be able to revoke
+### batchCreate (transaction)
+As a grantor, you can create a batch of `tickets` where you specify the following
+- **token**: the address of the ERC20 token you are granting
+- **beneficiaries**: array of recipients
+- **cliff**: you can specify a cliff (in number of days) or set it to 0 to make it immediately available
+- **vesting**: the number of days for the entire amount to be vested
+- **amounts**: the number array of tokens you are granting for each beneficiary
 - **irrevocable**: if set to `true`, you will not be able to revoke
 
 ### Revoke (transaction)
@@ -46,7 +53,7 @@ As a grantor, you can create a batch of `tickets` where you specify the followin
 
 
 ## How do I try it?
-- It is available on Rinkey testnet: [0x5CaB6546860eE192C9B435AF2302ed7493C4838E](https://rinkeby.etherscan.io/address/0x5CaB6546860eE192C9B435AF2302ed7493C4838E#writeContract)
+- It is available on Rinkey testnet: [0xB84cda1Bf76328EfEEB0FE40139177790866F210](https://rinkeby.etherscan.io/address/0xB84cda1Bf76328EfEEB0FE40139177790866F210#writeContract)
 - You will need first to approve the smart contract with your token
 - Use the `Write Contract` tab to `create`, `claim` or `revoke`
 - You can use the `Read Contract` tab for queries

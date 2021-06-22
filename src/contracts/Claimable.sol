@@ -176,13 +176,27 @@ contract Claimable {
       emit TicketCreated(ticketId, _token, _amount, _irrevocable);
     }
 
-    /// @notice allow batch create tickets with the same terms
-    function batchCreate(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public {
+    /// @notice allow batch create tickets with the same terms same amount
+    function batchCreateSameAmount(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256 _amount, bool _irrevocable) public {
         /// @dev set maximum array length?
+        require(_beneficiaries.length > 0, "At least one beneficiary is required");
         for (uint256 i=0; i < _beneficiaries.length; i++) {
             create(_token, _beneficiaries[i], _cliff, _vesting, _amount, _irrevocable);
         }
     }
+
+    /// @notice allow batch create tickets with the same terms different amount
+    function batchCreate(address _token, address[] memory _beneficiaries, uint256 _cliff, uint256 _vesting, uint256[] memory _amounts, bool _irrevocable) public {
+        /// @dev set maximum array length?
+        require(_beneficiaries.length > 0, "At least one beneficiary is required");
+        require(_beneficiaries.length == _amounts.length, "Number of beneficiaries should match the number of amounts.");
+        for (uint256 i=0; i < _beneficiaries.length; i++) {
+            if (_amounts[i] > 0) {
+                create(_token, _beneficiaries[i], _cliff, _vesting, _amounts[i], _irrevocable);
+            }
+        }
+    }
+
 
     /// @notice claim available balance, only beneficiary can call
     function claim(uint256 _id) public notRevoked(_id) returns (bool success) {

@@ -46,7 +46,7 @@ As a grantor, you can create a batch of `tickets` where you specify the followin
 
 
 ## How do I try it?
-- It is available on Rinkey testnet: [0x55bc1C0653D47E7d3D093FAB8E8E7B829b34b937](https://rinkeby.etherscan.io/address/0x55bc1C0653D47E7d3D093FAB8E8E7B829b34b937#writeContract)
+- It is available on Rinkey testnet: [0x5CaB6546860eE192C9B435AF2302ed7493C4838E](https://rinkeby.etherscan.io/address/0x5CaB6546860eE192C9B435AF2302ed7493C4838E#writeContract)
 - You will need first to approve the smart contract with your token
 - Use the `Write Contract` tab to `create`, `claim` or `revoke`
 - You can use the `Read Contract` tab for queries

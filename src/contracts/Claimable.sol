@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity >=0.6.0 <0.8.0;
@@ -159,7 +160,7 @@ contract Claimable is Context {
         _;
     }
 
-    function viewTicket(uint256 _id) canView(_id) public view returns (Ticket memory ticket) {
+    function viewTicket(uint256 _id) public view canView(_id) returns (Ticket memory ticket) {
         ticket = tickets[_id];
     }
 
@@ -210,7 +211,7 @@ contract Claimable is Context {
     }
 
     /// @notice claim available balance, only beneficiary can call
-    function claim(uint256 _id) notRevoked(_id) public returns (bool success) {
+    function claim(uint256 _id) public notRevoked(_id) returns (bool success) {
       Ticket storage ticket = tickets[_id];
       require(ticket.beneficiary == _msgSender(), "Only beneficiary can claim.");
       require(ticket.balance > 0, "Ticket has no balance.");
@@ -227,7 +228,7 @@ contract Claimable is Context {
     }
 
     /// @notice revoke ticket, balance returns to grantor, only grantor can call
-    function revoke(uint256 _id) notRevoked(_id) public returns (bool success) {
+    function revoke(uint256 _id) public notRevoked(_id) returns (bool success) {
       Ticket storage ticket = tickets[_id];
       require(ticket.grantor == _msgSender(), "Only grantor can revoke.");
       require(ticket.irrevocable == false, "Ticket is irrevocable.");
@@ -242,7 +243,7 @@ contract Claimable is Context {
 
 
     /// @dev checks the ticket has cliffed or not
-    function hasCliffed(uint256 _id) canView(_id) public view returns (bool) {
+    function hasCliffed(uint256 _id) public view canView(_id) returns (bool) {
         Ticket memory ticket = tickets[_id];
         if (ticket.cliff == 0) {
             return true;
@@ -251,7 +252,7 @@ contract Claimable is Context {
     }
 
     /// @dev calculates the available balances excluding cliff and claims
-    function unlocked(uint256 _id) canView(_id) public view returns (uint256 amount) {
+    function unlocked(uint256 _id) public view canView(_id) returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
         uint256 timeLapsed = SafeMath.sub(block.timestamp, ticket.createdAt); // in seconds
         uint256 vestingInSeconds = SafeMath.mul(ticket.vesting, 86400); // in seconds: 24 x 60 x 60
@@ -262,7 +263,7 @@ contract Claimable is Context {
     }
 
     /// @notice check available claims, only grantor or beneficiary can call
-    function available(uint256 _id) canView(_id) notRevoked(_id) public view returns (uint256 amount) {
+    function available(uint256 _id) public view canView(_id) notRevoked(_id) returns (uint256 amount) {
         Ticket memory ticket = tickets[_id];
         require(ticket.balance > 0, "Ticket has no balance.");
         if (hasCliffed(_id)) {
